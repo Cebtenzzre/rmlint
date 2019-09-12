@@ -99,8 +99,8 @@ void rm_path_iter_init(RmPathIter *iter, const char *path) {
         path++;
     }
 
-    memset(iter->path_buf, 0, PATH_MAX);
     strncpy(iter->path_buf, path, PATH_MAX - 1);
+    iter->path_buf[PATH_MAX - 1] = '\0';
 
     iter->curr_elem = iter->path_buf;
 }
