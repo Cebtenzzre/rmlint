@@ -65,6 +65,7 @@ static int fts_palloc(FTS *, size_t);
 static void fts_padjust(FTS *, FTSENT *);
 static FTSENT *fts_sort(FTS *, FTSENT *, size_t);
 static unsigned short fts_stat(FTS *, FTSENT *, int);
+static unsigned short fts_statat(int, FTS *, FTSENT *, int);
 static int fts_safe_changedir(const FTS *, const FTSENT *, int, const char *);
 
 #if defined(ALIGNBYTES) && defined(ALIGN)
@@ -815,14 +816,16 @@ static FTSENT *fts_build(FTS *sp, int type) {
             p->fts_accpath = ISSET(FTS_NOCHDIR) ? p->fts_path : p->fts_name;
             p->fts_info = FTS_NSOK;
         } else {
-            /* Build a file name for fts_stat to stat. */
+            /* The file name for fts_stat. */
+            p->fts_accpath = p->fts_name;
+            /* Stat it. */
+            p->fts_info = fts_statat(dirfd(dirp), sp, p, 0);
+
+            /* Build a file name. */
             if(ISSET(FTS_NOCHDIR)) {
                 p->fts_accpath = p->fts_path;
                 memmove(cp, p->fts_name, (size_t)(p->fts_namelen + 1));
-            } else
-                p->fts_accpath = p->fts_name;
-            /* Stat it. */
-            p->fts_info = fts_stat(sp, p, 0);
+            }
 
             /* Decrement link count if applicable. */
             if(nlinks > 0 &&
@@ -888,7 +891,11 @@ static FTSENT *fts_build(FTS *sp, int type) {
     return (head);
 }
 
-static unsigned short fts_stat(FTS *sp, FTSENT *p, int follow) {
+static inline unsigned short fts_stat(FTS *sp, FTSENT *p, int follow) {
+    return fts_statat(AT_FDCWD, sp, p, follow);
+}
+
+static unsigned short fts_statat(int dirfd, FTS *sp, FTSENT *p, int follow) {
     FTSENT *t;
     dev_t dev;
     __fts_ino_t ino;
@@ -918,16 +925,16 @@ static unsigned short fts_stat(FTS *sp, FTSENT *p, int follow) {
      * fail, set the errno from the stat call.
      */
     if(ISSET(FTS_LOGICAL) || follow) {
-        if(stat(p->fts_accpath, sbp)) {
+        if(fstatat(dirfd, p->fts_accpath, sbp, 0)) {
             saved_errno = errno;
-            if(!lstat(p->fts_accpath, sbp)) {
+            if(!fstatat(dirfd, p->fts_accpath, sbp, AT_SYMLINK_NOFOLLOW)) {
                 errno = 0;
                 return (FTS_SLNONE);
             }
             p->fts_errno = saved_errno;
             goto err;
         }
-    } else if(lstat(p->fts_accpath, sbp)) {
+    } else if(fstatat(dirfd, p->fts_accpath, sbp, AT_SYMLINK_NOFOLLOW)) {
         p->fts_errno = errno;
     err:
         memset(sbp, 0, sizeof(*sbp));
