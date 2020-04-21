@@ -146,20 +146,8 @@ bool rm_traverse_file(RmSession *session, RmStat *statp, const char *path, bool 
         }
     }
 
-    char *resolved_path = NULL;
-    if(is_symlink && cfg->follow_symlinks) {
-        resolved_path = rm_traverse_symlink_path(path);
-        if(resolved_path == NULL) {
-            return FALSE;
-        }
-        path = resolved_path;
-        is_symlink = false;
-    }
-
     RmFile *file =
         rm_file_new(session, path, statp, file_type, is_prefd, path_index, depth, NULL);
-
-    g_free(resolved_path);
 
     if(file != NULL) {
         file->is_symlink = is_symlink;

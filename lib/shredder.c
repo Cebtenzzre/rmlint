@@ -1675,7 +1675,7 @@ static gint rm_shred_process_file(RmFile *file, RmSession *session) {
         gsize bytes_read = 0;
         RmHasherTask *task = rm_hasher_task_new(tag->hasher, file->digest, file);
         if(!rm_hasher_task_hash(task, file_path, file->hash_offset, bytes_to_read,
-                                file->is_symlink, &bytes_read)) {
+                                file->is_symlink && !cfg->follow_symlinks, &bytes_read)) {
             /* rm_hasher_start_increment failed somewhere */
             file->status = RM_FILE_STATE_IGNORE;
             shredder_waiting = FALSE;
@@ -1686,7 +1686,7 @@ static gint rm_shred_process_file(RmFile *file, RmSession *session) {
 
         /* Update totals for file, device and session*/
         file->hash_offset += bytes_to_read;
-        if(file->is_symlink) {
+        if(file->is_symlink && !cfg->follow_symlinks) {
             rm_shred_adjust_counters(tag, 0, -(gint64)file->file_size);
         } else {
             rm_shred_adjust_counters(tag, 0, -(gint64)bytes_to_read);
