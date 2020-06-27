@@ -127,6 +127,8 @@ handle_bad_user_and_group_id() {
 # DUPLICATE HANDLER FUNCTIONS #
 ###############################
 
+STAMPFILE2=
+
 check_for_equality() {
     if [ -f "$1" ]; then
         # Use the more lightweight builtin `cmp` for regular files:
@@ -218,12 +220,15 @@ cp_reflink() {
     printf "${COL_YELLOW}Reflinking to original: ${COL_RESET}%%s\n" "$1"
     if original_check "$1" "$2"; then
         if [ -z "$DO_DRY_RUN" ]; then
-            touch -mr "$1" -- "$0"
+            if [ -z "$STAMPFILE2" ]; then
+                STAMPFILE2=$(mktemp "${TMPDIR:-/tmp}/rmlint.XXXXXXXX.stamp")
+            fi
+            touch -mr "$1" -- "$STAMPFILE2"
             if [ -d "$1" ]; then
                 rm -rf -- "$1"
             fi
             cp --archive --reflink=always -- "$2" "$1"
-            touch -mr "$0" -- "$1"
+            touch -mr "$STAMPFILE2" -- "$1"
         fi
     fi
 }
@@ -380,7 +385,7 @@ do
        ;;
      k)
        DO_KEEP_DIR_TIMESTAMPS=true
-       STAMPFILE=$(mktemp 'rmlint.XXXXXXXX.stamp')
+       STAMPFILE=$(mktemp "${TMPDIR:-/tmp}/rmlint.XXXXXXXX.stamp")
        ;;
      i)
        DO_ASK_BEFORE_DELETE=true
